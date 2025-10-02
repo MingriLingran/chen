@@ -30,7 +30,7 @@ async def handle_group_increase(bot: Bot, event: GroupIncreaseNoticeEvent):
         qq_level = int(user_info.get('QQLevel', '0'))
         logger.debug(f"User {user_id} QQ Level: {qq_level}")
         
-        # 判断等级是否小于等于20
+        # 判断等级是否小于等于5
         if qq_level <= 5:
             # 执行禁言30天（2592000秒）
             await bot.set_group_ban(

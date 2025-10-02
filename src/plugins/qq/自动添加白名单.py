@@ -1,6 +1,7 @@
 import nonebot
 from nonebot import logger, require, on_command
 from nonebot_plugin_apscheduler import scheduler
+from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot.v11 import Bot
 from ..feishu.查询用户 import 查询昨天的用户
 from ..mcsm.command import 面板管理
@@ -11,7 +12,7 @@ config = nonebot.get_driver().config
 group_id = getattr(config, "qq_group_id", None)  # 获取配置中的QQ群号
 
 # 定义手动触发命令
-add_whitelist = on_command("add_whitelist", aliases={"添加白名单", "添加全部白名单"}, priority=20)
+add_whitelist = on_command("add_whitelist", aliases={"添加白名单", "添加全部白名单"}, priority=20,permission=SUPERUSER)
 
 #@scheduler.scheduled_job("interval", seconds=30, id="auto_add_whitelist")
 async def auto_add_whitelist():

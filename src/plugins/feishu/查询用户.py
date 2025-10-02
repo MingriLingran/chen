@@ -1,6 +1,7 @@
 from nonebot import logger, on_command, require
 from nonebot_plugin_apscheduler import scheduler
 from nonebot.adapters.onebot.v11 import MessageEvent
+from nonebot.permission import SUPERUSER
 import nonebot
 import requests
 import json
@@ -50,9 +51,9 @@ class 查询昨天的用户:
                 "page_size": 50,
                 "automatic_fields": "false",
                 "field_names": [
-                    "你的QQ号码",
+                    "QQ号码",
                     "总分",
-                    "你要申请白名单的游戏ID",
+                    "游戏ID",
                     "提交时间",
                 ],
             }
@@ -70,7 +71,7 @@ class 查询昨天的用户:
             return None
 
 
-weather = on_command("qc", aliases={"获取飞书记录"}, priority=5)
+weather = on_command("qc", aliases={"获取飞书记录"}, priority=5,permission=SUPERUSER)
 
 
 @weather.handle()
@@ -87,8 +88,8 @@ async def _():
                 response_text = "📋 昨日提交白名单申请的用户如下：\n\n"
                 for idx, item in enumerate(items, start=1):
                     fields = item.get("fields", {})
-                    qq = fields.get("你的QQ号码", [{}])[0].get("text", "未知")
-                    game_id = fields.get("你要申请白名单的游戏ID", [{}])[0].get(
+                    qq = fields.get("QQ号码", [{}])[0].get("text", "未知")
+                    game_id = fields.get("游戏ID", [{}])[0].get(
                         "text", "未知"
                     )
                     score = (

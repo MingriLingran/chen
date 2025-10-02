@@ -3,9 +3,10 @@ import requests
 from nonebot import logger, on_command
 from nonebot.adapters.onebot.v11 import MessageEvent
 from nonebot.adapters import Message
+from nonebot.permission import SUPERUSER
 from nonebot.params import CommandArg
 
-get_user_info = on_command("get_user", aliases={"获取飞书记录"}, priority=5)
+get_user_info = on_command("get_user", aliases={"获取QQ信息"}, priority=5,permission=SUPERUSER)
 
 @get_user_info.handle()
 async def handle_user_info_command(event: MessageEvent,args: Message = CommandArg()):

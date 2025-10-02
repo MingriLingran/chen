@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from nonebot.adapters.onebot.v11 import Message, MessageSegment
 from nonebot.params import CommandArg, ArgPlainText
 from nonebot.matcher import Matcher
+from nonebot.permission import SUPERUSER
 
 config = nonebot.get_driver().config
 
@@ -95,7 +96,7 @@ class 面板管理:
         return self.查询日志(uuid, daemonid)
 
 
-command = on_command("mcsm", aliases={"MCSM"}, priority=5)
+command = on_command("mcsm", aliases={"MCSM"}, priority=5,permission=SUPERUSER)
 
 @command.handle()
 async def _(args: Message = CommandArg()):
