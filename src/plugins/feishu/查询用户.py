@@ -1,6 +1,4 @@
 from nonebot import logger, on_command, require
-
-require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 from nonebot.adapters.onebot.v11 import MessageEvent
 import nonebot
@@ -8,6 +6,7 @@ import requests
 import json
 from .密钥管理 import FeishuTokenManager
 
+require("nonebot_plugin_apscheduler")
 config = nonebot.get_driver().config
 
 
@@ -35,35 +34,29 @@ class 查询昨天的用户:
     async def 获取昨日提交用户(self):
         # 修改: 在实际需要时再初始化token
         await self.ensure_token()
-        data = json.dumps({
-        "filter": {
-            "conjunction": "and",
-            "conditions": [
+        data = json.dumps(
             {
-                "field_name": "总分",
-                "operator": "isGreater",
-                "value": [
-                75
-                ]
-            },
-            {
-                "field_name": "提交时间",
-                "operator": "is",
-                "value": [
-                "TheLastMonth"
-                ]
+                "filter": {
+                    "conjunction": "and",
+                    "conditions": [
+                        {"field_name": "总分", "operator": "isGreater", "value": [75]},
+                        {
+                            "field_name": "提交时间",
+                            "operator": "is",
+                            "value": ["TheLastMonth"],
+                        },
+                    ],
+                },
+                "page_size": 50,
+                "automatic_fields": "false",
+                "field_names": [
+                    "你的QQ号码",
+                    "总分",
+                    "你要申请白名单的游戏ID",
+                    "提交时间",
+                ],
             }
-            ]
-        },
-        "page_size": 50,
-        "automatic_fields": 'false',
-        "field_names": [
-            "你的QQ号码",
-            "总分",
-            "你要申请白名单的游戏ID",
-            "提交时间"
-        ]
-        })
+        )
         try:
             response = requests.post(
                 f"https://open.feishu.cn/open-apis/bitable/v1/apps/{self.base_id}/tables/{self.table_id}/records/search",
