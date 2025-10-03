@@ -33,10 +33,23 @@ class 查询昨天的用户:
                 raise
 
     async def 获取昨日提交用户(self):
+        """
+        获取所有符合条件的用户记录（支持分页查询，最多可获取5000条记录）
+        """
         # 修改: 在实际需要时再初始化token
         await self.ensure_token()
-        data = json.dumps(
-            {
+        
+        all_items = []
+        page_token = None
+        max_pages = 100  # 限制最大页数，防止无限循环
+        current_page = 0
+        
+        while current_page < max_pages:
+            current_page += 1
+            logger.debug(f"正在获取第 {current_page} 页数据")
+            
+            # 构建请求数据
+            request_data = {
                 "filter": {
                     "conjunction": "and",
                     "conditions": [
@@ -48,7 +61,82 @@ class 查询昨天的用户:
                         },
                     ],
                 },
-                "page_size": 50,
+                "page_size": 500,  # 根据API文档，最大支持500条记录
+                "automatic_fields": "false",
+                "field_names": [
+                    "QQ号码",
+                    "总分",
+                    "游戏ID",
+                    "提交时间",
+                ],
+            }
+            
+            # 构建请求URL和参数
+            url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{self.base_id}/tables/{self.table_id}/records/search"
+            params = {}
+            
+            # 如果有page_token，添加到查询参数中
+            if page_token:
+                params["page_token"] = page_token
+                
+            data = json.dumps(request_data)
+            logger.debug(f"请求参数: {request_data}")
+            logger.debug(f"查询参数: {params}")
+            
+            try:
+                response = requests.post(
+                    url,
+                    headers=self.headers,
+                    data=data,
+                    params=params  # 将page_token作为查询参数传递
+                )
+                result = response.json()
+                logger.debug(f"第 {current_page} 页响应: {result}")
+                
+                if result and result.get("code") == 0:
+                    items = result.get("data", {}).get("items", [])
+                    all_items.extend(items)
+                    logger.debug(f"第 {current_page} 页获取到 {len(items)} 条记录，当前总记录数: {len(all_items)}")
+                    
+                    # 检查是否还有更多数据
+                    has_more = result.get("data", {}).get("has_more", False)
+                    page_token = result.get("data", {}).get("page_token")
+                    logger.debug(f"has_more: {has_more}, page_token: {page_token}")
+                    
+                    # 如果没有更多数据或page_token为空，则结束循环
+                    if not has_more or not page_token:
+                        logger.debug("没有更多页面，结束分页查询")
+                        break
+                else:
+                    logger.error(f"获取第 {current_page} 页数据失败: {result}")
+                    break
+                    
+            except Exception as e:
+                logger.error(f"获取第 {current_page} 页数据时发生异常: {e}", exc_info=True)
+                break
+                
+        logger.info(f"总共获取到 {len(all_items)} 条用户记录")
+        return {
+            "code": 0,
+            "data": {
+                "items": all_items
+            }
+        }
+
+    async def 根据QQ号查询用户(self, qq_number: str):
+        """
+        根据QQ号查询特定用户记录
+        """
+        await self.ensure_token()
+        data = json.dumps(
+            {
+                "filter": {
+                    "conjunction": "and",
+                    "conditions": [
+                        {"field_name": "QQ号码", "operator": "is", "value": [qq_number]},
+                    ],
+                },
+                "page_size": 10,  # 一般一个QQ号只会有一条记录，设置10条以防万一
                 "automatic_fields": "false",
                 "field_names": [
                     "QQ号码",
@@ -64,10 +152,10 @@ class 查询昨天的用户:
                 headers=self.headers,
                 data=data,
             )
-            logger.debug(f"Response: {response.json()}")
+            logger.debug(f"根据QQ号查询用户响应: {response.json()}")
             return response.json()
         except Exception as e:
-            logger.debug(f"获取用户信息失败: {e}")
+            logger.debug(f"根据QQ号查询用户失败: {e}", exc_info=True)
             return None
 
 
@@ -104,4 +192,4 @@ async def _():
         else:
             await weather.send("❌ 获取用户信息失败或无数据返回。")
     except Exception as e:
-        logger.error(f"处理 /qc 命令时发生异常：{e}")
+        logger.error(f"处理 /qc 命令时发生异常：{e}", exc_info=True)
