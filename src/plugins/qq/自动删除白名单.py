@@ -55,7 +55,7 @@ async def process_whitelist_removal(bot: Bot, user_id: int):
                     
                     try:
                         # 删除白名单
-                        manager = 面板管理(f"say 白名单删除测试 {game_id}")
+                        manager = 面板管理(f"multilogin whitelist remove {game_id}")
                         result = manager.发送并获取日志()
                         
                         logger.info(f"成功删除用户 {user_id} 的白名单，游戏ID: {game_id}")

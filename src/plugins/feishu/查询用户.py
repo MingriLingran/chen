@@ -57,7 +57,7 @@ class 查询昨天的用户:
                         {
                             "field_name": "提交时间",
                             "operator": "is",
-                            "value": ["TheLastMonth"],
+                            "value": ["Yesterday"],
                         },
                     ],
                 },

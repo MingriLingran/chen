@@ -184,7 +184,7 @@ async def process_whitelist_addition(bot):
                         if game_id:
                             try:
                                 logger.debug(f"准备为游戏ID {game_id} 添加白名单")
-                                manager = 面板管理(f"say 百名单添加测试 {game_id}")
+                                manager = 面板管理(f"multilogin whitelist add {game_id}")
                                 result = manager.发送并获取日志()
                                 logger.info(f"添加白名单成功，游戏ID: {game_id}, 返回结果: {result}")
                                 logger.debug(f"添加白名单详细结果: {result}")
