@@ -53,7 +53,7 @@ class 查询昨天的用户:
                 "filter": {
                     "conjunction": "and",
                     "conditions": [
-                        {"field_name": "总分", "operator": "isGreater", "value": [75]},
+                        {"field_name": "总分", "operator": "isGreater", "value": [74]},
                         {
                             "field_name": "提交时间",
                             "operator": "is",

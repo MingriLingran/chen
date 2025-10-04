@@ -128,4 +128,4 @@ async def _(matcher: Matcher, command_text: str = ArgPlainText("command")):
         result = manager.发送并获取日志()
         await matcher.finish(result)
     except Exception as e:
-        await matcher.finish(f"执行命令时出错: {str(e)}")
+        logger.error(f"执行命令时出错: {str(e)}")
