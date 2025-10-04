@@ -3,8 +3,9 @@ from nonebot import logger, require, on_command
 from nonebot_plugin_apscheduler import scheduler
 from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot.v11 import Bot
-from ..feishu.查询用户 import 查询昨天的用户
+from ..feishu.查询用户 import 查询用户
 from ..mcsm.command import 面板管理
+from .filters import apply_filters, extract_user_info
 
 require("nonebot_plugin_apscheduler")
 
@@ -13,6 +14,20 @@ group_id = getattr(config, "qq_group_id", None)  # 获取配置中的QQ群号
 
 # 定义手动触发命令
 add_whitelist = on_command("add_whitelist", aliases={"添加白名单", "添加全部白名单"}, priority=20,permission=SUPERUSER)
+
+async def send_message_to_group(bot, message):
+    """
+    向群组发送消息的通用函数
+    """
+    try:
+        if group_id:
+            await bot.send_group_msg(group_id=int(group_id), message=message)
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"发送消息失败: {error_msg}", exc_info=True)
+        # 检查是否是因为机器人不在群内
+        if "不是本群成员" in error_msg or "not in group" in error_msg.lower():
+            logger.error(f"机器人不在目标群组 {group_id} 内，请将机器人QQ号添加到群组中")
 
 # @scheduler.scheduled_job("cron", hour=10, minute=0, id="auto_add_whitelist")
 async def auto_add_whitelist():
@@ -54,7 +69,7 @@ async def process_whitelist_addition(bot):
     """
     try:
         logger.info("开始处理白名单添加逻辑")
-        query = 查询昨天的用户()
+        query = 查询用户()
         logger.debug("初始化查询昨天的用户实例完成")
         result = await query.获取昨日提交用户()
         logger.info(f"获取用户信息结果: {result}")
@@ -65,82 +80,29 @@ async def process_whitelist_addition(bot):
             logger.debug(f"原始用户数据详情: {items}")
             if not items:
                 logger.info("没有查询到任何提交记录")
-                try:
-                    if group_id:
-                        await bot.send_group_msg(group_id=int(group_id), message="📭 昨日没有查询到任何提交记录。")
-                except Exception as e:
-                    error_msg = str(e)
-                    logger.error(f"发送消息失败: {error_msg}", exc_info=True)
-                    # 检查是否是因为机器人不在群内
-                    if "不是本群成员" in error_msg or "not in group" in error_msg.lower():
-                        logger.error(f"机器人不在目标群组 {group_id} 内，请将机器人QQ号添加到群组中")
+                await send_message_to_group(bot, "📭 昨日没有查询到任何提交记录。")
             else:
-                # 过滤有效数据
-                valid_items = []
-                invalid_items_count = 0
-                for idx, item in enumerate(items):
-                    logger.debug(f"处理第 {idx+1} 条用户数据: {item}")
-                    fields = item.get("fields", {})
-                    logger.debug(f"第 {idx+1} 条数据的字段详情: {fields}")
-                    # 使用正确的字段名提取数据
-                    qq = fields.get("QQ号码", [{}])[0].get("text", "")
-                    game_id = fields.get("游戏ID", [{}])[0].get("text", "")
-                    logger.debug(f"提取到的QQ: '{qq}', 游戏ID: '{game_id}'")
-                    
-                    # 只有当QQ号和游戏ID都不为空时，才认为是有效数据
-                    if qq.strip() and game_id.strip():
-                        valid_items.append(item)
-                        logger.debug(f"第 {idx+1} 条数据有效，已添加到有效数据列表")
-                    else:
-                        invalid_items_count += 1
-                        logger.debug(f"第 {idx+1} 条数据无效，QQ或游戏ID为空，已跳过")
-                
-                logger.info(f"过滤后得到 {len(valid_items)} 个有效用户提交记录，{invalid_items_count} 个无效记录被过滤")
-                logger.debug(f"有效用户数据详情: {valid_items}")
+                # 应用所有过滤器
+                valid_items = apply_filters(items)
                 
                 if not valid_items:
                     logger.info("没有查询到任何有效记录")
-                    try:
-                        if group_id:
-                            await bot.send_group_msg(group_id=int(group_id), message="📭 昨日没有查询到任何有效记录。")
-                    except Exception as e:
-                        error_msg = str(e)
-                        logger.error(f"发送消息失败: {error_msg}", exc_info=True)
-                        # 检查是否是因为机器人不在群内
-                        if "不是本群成员" in error_msg or "not in group" in error_msg.lower():
-                            logger.error(f"机器人不在目标群组 {group_id} 内，请将机器人QQ号添加到群组中")
+                    await send_message_to_group(bot, "📭 昨日没有查询到任何有效记录。")
                 else:
                     response_text = "📋 昨日提交白名单申请的用户如下：\n\n"
                     user_details = []
                     for idx, item in enumerate(valid_items, start=1):
-                        fields = item.get("fields", {})
-                        # 使用正确的字段名提取数据
-                        qq = fields.get("QQ号码", [{}])[0].get("text", "未知")
-                        game_id = fields.get("游戏ID", [{}])[0].get("text", "未知")
-                        score = (
-                            fields.get("总分", {}).get("value", [0])[0]
-                            if isinstance(fields.get("总分"), dict)
-                            else "未知"
-                        )
-                        response_text += (
-                            f"{idx}. QQ：{qq} | 游戏ID：{game_id} | 总分：{score}\n"
-                        )
-                        user_details.append({
-                            "index": idx,
-                            "qq": qq,
-                            "game_id": game_id,
-                            "score": score
-                        })
+                        user_info = extract_user_info(item)
+                        if user_info:
+                            response_text += (
+                                f"{idx}. QQ：{user_info['qq']} | 游戏ID：{user_info['game_id']} | 总分：{user_info['score']}\n"
+                            )
+                            user_details.append({
+                                "index": idx,
+                                **user_info
+                            })
                     logger.info(f"用户详情: {user_details}")
-                    try:
-                        if group_id:
-                            await bot.send_group_msg(group_id=int(group_id), message=response_text)
-                    except Exception as e:
-                        error_msg = str(e)
-                        logger.error(f"发送用户列表消息失败: {error_msg}", exc_info=True)
-                        # 检查是否是因为机器人不在群内
-                        if "不是本群成员" in error_msg or "not in group" in error_msg.lower():
-                            logger.error(f"机器人不在目标群组 {group_id} 内，请将机器人QQ号添加到群组中")
+                    await send_message_to_group(bot, response_text)
                     
                     # 循环添加用户白名单
                     logger.info("开始循环添加用户白名单")
@@ -151,10 +113,13 @@ async def process_whitelist_addition(bot):
                     
                     for idx, item in enumerate(valid_items):
                         logger.debug(f"开始处理第 {idx+1} 个有效用户")
-                        fields = item.get("fields", {})
-                        # 使用正确的字段名提取数据
-                        qq = fields.get("QQ号码", [{}])[0].get("text", "")
-                        game_id = fields.get("游戏ID", [{}])[0].get("text", "")
+                        user_info = extract_user_info(item)
+                        if not user_info:
+                            logger.warning(f"无法提取第 {idx+1} 个用户的信息")
+                            continue
+                            
+                        qq = user_info['qq']
+                        game_id = user_info['game_id']
                         logger.info(f"正在处理用户 QQ:{qq}, GameID:{game_id}")
                         
                         # 数据校验，跳过空数据
@@ -208,51 +173,20 @@ async def process_whitelist_addition(bot):
                     
                     # 只发送成功添加白名单的用户信息
                     if success_users:
-                        success_message = "✅ 以下用户白名单添加成功：\n\n"
-                        for idx, user in enumerate(success_users, start=1):
-                            success_message += f"{idx}. QQ：{user['qq']} | 游戏ID：{user['game_id']}\n"
-                        try:
-                            if group_id:
-                                await bot.send_group_msg(group_id=int(group_id), message=success_message)
-                        except Exception as e:
-                            error_msg = str(e)
-                            logger.error(f"发送成功用户列表消息失败: {error_msg}", exc_info=True)
-                            if "不是本群成员" in error_msg or "not in group" in error_msg.lower():
-                                logger.error(f"机器人不在目标群组 {group_id} 内，请将机器人QQ号添加到群组中")
+                        
+                        # 艾特成功的用户
+                        at_message = "🎉 恭喜以下用户白名单添加成功：\n"
+                        for user in success_users:
+                            at_message += f"[CQ:at,qq={user['qq']}]\n"
+                        at_message += "\n请检查游戏内是否已成功添加白名单"
+                        await send_message_to_group(bot, at_message)
                     
-                    try:
-                        if group_id:
-                            await bot.send_group_msg(group_id=int(group_id), message=result_message)
-                    except Exception as e:
-                        error_msg = str(e)
-                        logger.error(f"发送结果消息失败: {error_msg}", exc_info=True)
-                        # 检查是否是因为机器人不在群内
-                        if "不是本群成员" in error_msg or "not in group" in error_msg.lower():
-                            logger.error(f"机器人不在目标群组 {group_id} 内，请将机器人QQ号添加到群组中")
+                    await send_message_to_group(bot, result_message)
         else:
             logger.warning(f"获取用户信息失败或无数据返回，结果: {result}")
             logger.debug(f"获取用户信息失败详情: code={result.get('code') if isinstance(result, dict) else 'N/A'}")
-            try:
-                if group_id:
-                    await bot.send_group_msg(group_id=int(group_id), message="❌ 获取用户信息失败或无数据返回。")
-            except Exception as e:
-                error_msg = str(e)
-                logger.error(f"发送失败消息失败: {error_msg}", exc_info=True)
-                # 检查是否是因为机器人不在群内
-                if "不是本群成员" in error_msg or "not in group" in error_msg.lower():
-                    logger.error(f"机器人不在目标群组 {group_id} 内，请将机器人QQ号添加到群组中")
+            await send_message_to_group(bot, "❌ 获取用户信息失败或无数据返回。")
     except Exception as e:
         # 异常处理（可选）
         logger.error(f"处理新成员时出错: {str(e)}", exc_info=True)
-        try:
-            if group_id:
-                await bot.send_group_msg(
-                    group_id=int(group_id),
-                    message=f"处理新成员时发生错误：请尽快返回控制台查看"
-                )
-        except Exception as send_error:
-            error_msg = str(send_error)
-            logger.error(f"发送错误消息失败: {error_msg}", exc_info=True)
-            # 检查是否是因为机器人不在群内
-            if "不是本群成员" in error_msg or "not in group" in error_msg.lower():
-                logger.error(f"机器人不在目标群组 {group_id} 内，请将机器人QQ号添加到群组中")
+        await send_message_to_group(bot, "处理新成员时发生错误：请尽快返回控制台查看")

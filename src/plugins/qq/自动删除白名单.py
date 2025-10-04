@@ -1,7 +1,7 @@
 import nonebot
 from nonebot import logger, on_notice
 from nonebot.adapters.onebot.v11 import Bot, GroupDecreaseNoticeEvent
-from ..feishu.查询用户 import 查询昨天的用户
+from ..feishu.查询用户 import 查询用户
 from ..mcsm.command import 面板管理
 
 config = nonebot.get_driver().config
@@ -34,7 +34,7 @@ async def process_whitelist_removal(bot: Bot, user_id: int):
     """
     try:
         logger.info(f"开始查询退群用户 {user_id} 的白名单信息")
-        query = 查询昨天的用户()
+        query = 查询用户()
         # 使用新的根据QQ号精确查询的方法
         result = await query.根据QQ号查询用户(str(user_id))
         

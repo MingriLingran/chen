@@ -11,7 +11,7 @@ require("nonebot_plugin_apscheduler")
 config = nonebot.get_driver().config
 
 
-class 查询昨天的用户:
+class 查询用户:
     def __init__(self):
         # 修改: 延迟初始化token，避免在插件加载时就执行网络请求
         self.access_token = None
@@ -31,7 +31,7 @@ class 查询昨天的用户:
             except Exception as e:
                 logger.error(f"获取token失败: {e}")
                 raise
-
+    
     async def 获取昨日提交用户(self):
         """
         获取所有符合条件的用户记录（支持分页查询，最多可获取5000条记录）
@@ -166,13 +166,14 @@ weather = on_command("qc", aliases={"获取飞书记录"}, priority=5,permission
 # @scheduler.scheduled_job("interval", seconds=30, id="xxx")
 async def _():
     try:
-        query = 查询昨天的用户()
+        query = 查询用户()
         result = await query.获取昨日提交用户()
         if result and result.get("code") == 0:
             items = result.get("data", {}).get("items", [])
             if not items:
                 await weather.send("📭 没有查询到任何提交记录。")
             else:
+                
                 response_text = "📋 昨日提交白名单申请的用户如下：\n\n"
                 for idx, item in enumerate(items, start=1):
                     fields = item.get("fields", {})
